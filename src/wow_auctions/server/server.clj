@@ -7,6 +7,7 @@
             [hiccup.page :refer [include-js include-css]]
             [org.httpkit.client :as http]
             [org.httpkit.server :refer [run-server]]
+            [ring.middleware.gzip :refer [wrap-gzip]]
             [ring.middleware.resource :refer [wrap-resource]]
             [ring.middleware.content-type :refer [content-type-response wrap-content-type]]
             [wow-auctions.server.api :as api]
@@ -47,7 +48,8 @@
   []
   (-> (bdr/make-handler app-routes route-dispatcher)
       (wrap-resource "public")
-      (wrap-json-type)))
+      (wrap-json-type)
+      (wrap-gzip)))
 
 
 (defonce server* (atom nil))

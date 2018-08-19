@@ -9,6 +9,7 @@
   :dependencies [[org.clojure/clojure "1.9.0"]
                  [org.clojure/clojurescript "1.10.238"]
                  [org.clojure/core.async  "0.4.474"]
+                 [amalloy/ring-gzip-middleware "0.1.3"]
                  [bidi "2.1.3"]
                  [cheshire "5.8.0"]
                  [cljs-http "0.1.45"]
