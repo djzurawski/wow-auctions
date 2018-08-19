@@ -20,11 +20,19 @@
                  [thinktopic/think.semantic-ui "0.1.78.2-0"]]
 
   :plugins [[lein-figwheel "0.5.16"]
-            [lein-cljsbuild "1.1.7" :exclusions [[org.clojure/clojure]]]]
+            [lein-cljsbuild "1.1.7" :exclusions [[org.clojure/clojure]]]
+            [lein-heroku "0.5.3"]]
 
   :source-paths ["src"]
   :main wow-auctions.server.server
   :aot [wow-auctions.server.server]
+  :uberjar-name "wow-auctions.jar"
+
+  :heroku {:app-name "wow-auctions"
+           :jdk-version "1.8"
+           :include-files ["target/wow-auctions.jar"]
+           :process-types { "web" "java -jar target/wow-auctions.jar"}}
+
 
   :cljsbuild {:builds
               [{:id "dev"

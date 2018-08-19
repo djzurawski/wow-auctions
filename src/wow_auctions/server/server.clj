@@ -61,4 +61,4 @@
 
 (defn -main [& [port]]
   (let [port (Integer.  (or port (env :port) 5000))]
-    (reset! server* (run-server (make-bidi-routes) {:port 5000}))))
+    (reset! server* (run-server (make-bidi-routes) {:port port}))))
