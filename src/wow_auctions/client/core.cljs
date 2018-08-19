@@ -14,7 +14,7 @@
                            :realms []
                            :realm "malganis"
                            :items []
-                           :item-id 15120
+                           :item-id 152150
                            :item-name "anchor weed"}))
 
 (defn plotly-chart

@@ -44,7 +44,6 @@
   (let [copper-per-gold 10000]
     (reduce
      (fn [res {:keys [item buyout quantity] :as auctions}]
-       #_(when (or (zero? buyout) (println "Zero")) )
        (if-not (zero? buyout)
          (update res item conj (float (/ (/ buyout copper-per-gold) quantity)))
          res))
@@ -59,6 +58,5 @@
         {:keys [lastModified url]} (first (:files status))]
     (when (fetch-data? realm lastModified)
       (let [auctions (:auctions (parse-body @(http/get url)))]
-        (println "fetching realm" realm)
         (swap! auction-data* assoc realm {:last-modified lastModified
                                           :auctions (process-raw-auctions auctions)})))))
