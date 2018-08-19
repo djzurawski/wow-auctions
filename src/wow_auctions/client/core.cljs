@@ -147,7 +147,7 @@
   (update-data!)
   (go
     (let [response (<! (http/get "/realms_us.json"))]
-        (swap! app-state* assoc :realms (:body response))))
+      (swap! app-state* assoc :realms (:body response))))
   (go (let [response (<! (http/get "/items.json"))]
         (swap! app-state* assoc :items (:body response))))
   (fn []
@@ -158,9 +158,7 @@
        [ui/grid {:width 2}
         [ui/grid-row [item-search (:items @app-state*)]
          [realm-search (:realms @app-state*)]]]
-
-
-       (when (and data (not loading?))
+       (if (and data (not loading?))
          [:div
           [stats-table data]
           [ui/grid {:columns 2}
@@ -188,7 +186,8 @@
                 :type :box
                 :boxpoints :all
                 :jitter 0.3
-                :pointpos -1.8}]]]]]])])))
+                :pointpos -1.8}]]]]]]
+         [ui/loader {:active true :inline true :style {:margin "30px"}} "Loading"])])))
 
 
 (reagent/render-component [app]
