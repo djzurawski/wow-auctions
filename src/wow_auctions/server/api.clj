@@ -9,10 +9,3 @@
   {:status 200
    :headers {"Content-Type" "application/json"}
    :body (cheshire/generate-string (get-in @model/auction-data* [realm :auctions (java.lang.Integer/parseInt item)]))})
-
-(comment
-
-  (cheshire/generate-string (get-in @model/auction-data* ["malganis" :auctions (java.lang.Integer/parseInt "152508")]))
-
-
-  )

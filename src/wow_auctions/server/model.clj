@@ -1,13 +1,17 @@
 (ns wow-auctions.server.model
-  (:require [cheshire.core :as cheshire]
-            [environ.core :refer [env]]
-            [org.httpkit.client :as http]))
+  (:require
+   [camel-snake-kebab.core :refer [->snake_case]]
+   [camel-snake-kebab.extras :refer [transform-keys]]
+   [cheshire.core :as cheshire]
+   [environ.core :refer [env]]
+   [incanter.stats :as stats]
+   [clojure.java.jdbc :as jdbc]
+   [org.httpkit.client :as http]))
 
 
-(defonce auction-data* (atom {"malganis" {:last-modified 345}}))
+(defonce auction-data* (atom {}))
 
 (def API-KEY (env :wow-api-key))
-
 
 (defn parse-body
   [response]
@@ -32,6 +36,7 @@
   [realm last-modified]
   (or (not (realm-data-exists? realm))
       (stale-data? realm last-modified)))
+
 
 (defn zero-or-nil?
   [x]
@@ -60,3 +65,49 @@
       (let [auctions (:auctions (parse-body @(http/get url)))]
         (swap! auction-data* assoc realm {:last-modified lastModified
                                           :auctions (process-raw-auctions auctions)})))))
+
+
+(defn get-realm-auctions
+  [realm]
+  (let [status (parse-body @(http/get (str "https://us.api.battle.net/wow/auction/data/" realm)
+                                      {:query-params {:locale "en_US"
+                                                      :apikey API-KEY}}))
+        {:keys [lastModified url]} (first (:files status))]
+    {:auctions (:auctions (parse-body @(http/get url)))
+     :timestamp lastModified}))
+
+
+(defn auctions->item-prices
+  "Converts auction data from Blizzard API to {item-number [buyout-price-per-unit]}"
+  [auctions]
+  (let [copper-per-gold 10000]
+    (reduce
+     (fn [res {:keys [item buyout quantity] :as auctions}]
+       (if-not (zero? buyout)
+         (update res item conj (float (/ (/ buyout copper-per-gold) quantity)))
+         res))
+     {} auctions)))
+
+
+(defn prices->stats
+  [prices]
+  (->> (map (fn [label value]
+              [label value])
+            [:min :first-quartile :median :third-quartile :max] (stats/quantile prices))
+       (into {})))
+
+
+(defn auction-prices->db-row
+  [auctions timestamp realm]
+  (->> auctions
+       (map (fn [[item-id prices]]
+              (-> (prices->stats prices)
+                  (assoc :item-id item-id :count (count prices) :timestamp timestamp :realm realm))))
+       (map #(transform-keys ->snake_case %))))
+
+
+(defn insert-auctions!
+  [realm]
+  (let [{:keys [timestamp auctions]} (get-realm-auctions realm)]
+    (-> (auctions->item-prices auctions)
+        (auction-prices->db-row timestamp realm))))
