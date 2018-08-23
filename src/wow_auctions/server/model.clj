@@ -1,7 +1,5 @@
 (ns wow-auctions.server.model
   (:require
-   [camel-snake-kebab.core :refer [->snake_case]]
-   [camel-snake-kebab.extras :refer [transform-keys]]
    [cheshire.core :as cheshire]
    [environ.core :refer [env]]
    [incanter.stats :as stats]
@@ -55,7 +53,8 @@
      {} auctions)))
 
 
-(defn update-realm-data!
+(defn update-current-data!
+  "Updates in memory most recent snapshot"
   [realm]
   (let [status (parse-body @(http/get (str "https://us.api.battle.net/wow/auction/data/" realm)
                                       {:query-params {:locale "en_US"
@@ -65,7 +64,6 @@
       (let [auctions (:auctions (parse-body @(http/get url)))]
         (swap! auction-data* assoc realm {:last-modified lastModified
                                           :auctions (process-raw-auctions auctions)})))))
-
 
 (defn get-realm-auctions
   [realm]
@@ -95,19 +93,3 @@
               [label value])
             [:min :first-quartile :median :third-quartile :max] (stats/quantile prices))
        (into {})))
-
-
-(defn auction-prices->db-row
-  [auctions timestamp realm]
-  (->> auctions
-       (map (fn [[item-id prices]]
-              (-> (prices->stats prices)
-                  (assoc :item-id item-id :count (count prices) :timestamp timestamp :realm realm))))
-       (map #(transform-keys ->snake_case %))))
-
-
-(defn insert-auctions!
-  [realm]
-  (let [{:keys [timestamp auctions]} (get-realm-auctions realm)]
-    (-> (auctions->item-prices auctions)
-        (auction-prices->db-row timestamp realm))))

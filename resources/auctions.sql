@@ -3,14 +3,15 @@ CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;
 CREATE TABLE auctions
 (
     timestamp timestamp,
-    realm varchar(64),
+    item_id int,
+    count int,
     min float,
-    max float,
     first_quartile float,
-    third_quartile float,
     median float,
-    item_id int
- );
+    third_quartile float,
+    max float,
+    realm varchar(64)
+);
 
 
 SELECT create_hypertable('auctions', 'timestamp');
