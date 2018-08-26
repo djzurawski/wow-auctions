@@ -184,18 +184,26 @@
                    :width 1000
                    :div-id "line"
                    :title item-name}
-     [{:y (map :median price-history)
+     [{:y (map :third_quartile price-history)
+       :x timestamps
+       :name "Third Quartile"
+       :type :line
+       :line {:color :red}}
+      {:y (map :median price-history)
        :x timestamps
        :name "Median"
-       :type :line}
+       :type :line
+       :line {:color :orange}}
       {:y (map :first_quartile price-history)
        :x timestamps
        :name "First Quartile"
-       :type :line}
+       :type :line
+       :line {:color :green}}
       {:y (map :min price-history)
        :x timestamps
        :name "Min"
-       :type :line}]]))
+       :type :line
+       :line {:color :blue}}]]))
 
 
 
@@ -209,14 +217,15 @@
   (go (let [response (<! (http/get "/items.json"))]
         (swap! app-state* assoc :items (:body response))))
   (fn []
-    (let [{:keys [item-name items realm realms data loading? history]} @app-state*
-          ]
+    (let [{:keys [item-name items realm realms data loading? history]} @app-state*]
       [:div {:style { :padding-top "10px" :padding-left "30px"}}
-       [:h1 (str item-name " on " realm)]
-
+       [:h1 "World of Warcraft Auction Data"]
        [ui/grid {:width 4 :style {:width "50%"}}
         [ui/grid-row [item-search (:items @app-state*)]
-         [realm-search (:realms @app-state*)]]]
+         [realm-search (:realms @app-state*)]]
+        [ui/grid-row
+         [:h2 (str item-name " on " realm)]]
+        [ui/grid-row [:h3 "Most Recent Snapshot"]]]
        (if (and data (not loading?))
          ;;remove items more expensive than 2x the median
          (let [sorted-data (sort data)
@@ -231,6 +240,8 @@
               [ui/grid-column
                [current-data-box-plot item-name cleaned-data]]]
              [:div {:style {:margin :auto}}  "Note: Items more expensive than 2x the median have been removed"]
+             [ui/grid-row
+              [:h3 "Historical Data"]]
              [ui/grid-row
               [historical-chart item-name history]]]])
          [ui/loader {:active true :inline true :style {:margin "30px"}} "Loading"])])))
