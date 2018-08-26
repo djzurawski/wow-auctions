@@ -15,3 +15,6 @@ CREATE TABLE auctions
 
 
 SELECT create_hypertable('auctions', 'timestamp');
+
+CREATE INDEX IF NOT EXISTS realm_idx on auctions(realm);
+CREATE INDEX IF NOT EXISTS item_id_idx on auctions(item_id);

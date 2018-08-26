@@ -73,18 +73,27 @@
   []
   (let [{:keys [item-id realm]} @app-state*]
     (swap! app-state* assoc :loading? true)
-    (go (let [response (<! (http/get (str "/api/get-item/" realm "/"  item-id)))]
+    (go (let [response (<! (http/get (str "/api/get-item/current/" realm "/"  item-id)))]
           (swap! app-state* assoc :data (:body response))
           (swap! app-state* assoc :loading? false)))))
+
+(defn update-history!
+  []
+  (let [{:keys [item-id realm]} @app-state*]
+    #_(swap! app-state* assoc :loading? true)
+    (go (let [response (<! (http/get (str "/api/get-item/history/" realm "/"  item-id)))]
+          (swap! app-state* assoc :history (:body response))
+          #_(swap! app-state* assoc :loading? false)))))
 
 
 (defn realm-search
   [realms]
   (let [results* (atom [])]
     (fn [realms]
-      (let [options (->> realms (map (fn [realm]
-                                         {:title realm})))
+      (let [options (->> realms (map (fn [{:keys [slug] :as realm}]
+                                         {:title slug})))
             debounced-search-fn (debounce (partial search-fn results* options) 250)]
+
         [ui/search
          {:min-characters 3
           :placeholder "Search Realm"
@@ -95,7 +104,8 @@
                                               (:result)
                                               (:title))]
                                 (swap! app-state* assoc :realm realm)
-                                (update-data!)))}]))))
+                                (update-data!)
+                                (update-history!)))}]))))
 
 (defn item-search
   [items]
@@ -117,7 +127,8 @@
                                     item-id (:description result)
                                     item-name (:title result)]
                                 (swap! app-state* assoc :item-id item-id :item-name item-name)
-                                (update-data!)))}]))))
+                                (update-data!)
+                                (update-history!)))}]))))
 
 (defn stats-table
   [data]
@@ -140,53 +151,88 @@
        [ui/table-cell second-cheapest]]]]))
 
 
+(defn current-data-histogram
+  [item-name data]
+  [plotly-chart
+   {:div-id "histogram"
+    :title item-name
+    :width 500
+    :xlabel "Gold Per Item"
+    :ylabel "Count"}
+   [{:x data
+     :type :histogram}]])
+
+
+
+(defn current-data-box-plot
+  [item-name data]
+  [plotly-chart
+   {:ylabel "Gold Per Item"
+    :width 400
+    :div-id "box"}
+   [{:y data
+     :name item-name
+     :type :box
+     :boxpoints :all
+     :jitter 0.3
+     :pointpos -1.8}]])
+
+(defn historical-chart
+  [item-name price-history]
+  (let [timestamps (map :timestamp price-history)]
+    [plotly-chart {:ylabel "Gold Per Item"
+                   :width 1000
+                   :div-id "line"
+                   :title item-name}
+     [{:y (map :median price-history)
+       :x timestamps
+       :name "Median"
+       :type :line}
+      {:y (map :first_quartile price-history)
+       :x timestamps
+       :name "First Quartile"
+       :type :line}
+      {:y (map :min price-history)
+       :x timestamps
+       :name "Min"
+       :type :line}]]))
+
 
 
 (defn app
   []
   (update-data!)
+  (update-history!)
   (go
     (let [response (<! (http/get "/realms_us.json"))]
       (swap! app-state* assoc :realms (:body response))))
   (go (let [response (<! (http/get "/items.json"))]
         (swap! app-state* assoc :items (:body response))))
   (fn []
-    (let [{:keys [item-name items realm realms data loading?]} @app-state*]
-      [:div {:style {:width "50%" :padding-top "10px" :padding-left "30px"}}
+    (let [{:keys [item-name items realm realms data loading? history]} @app-state*
+          ]
+      [:div {:style { :padding-top "10px" :padding-left "30px"}}
        [:h1 (str item-name " on " realm)]
 
-       [ui/grid {:width 2}
+       [ui/grid {:width 4 :style {:width "50%"}}
         [ui/grid-row [item-search (:items @app-state*)]
          [realm-search (:realms @app-state*)]]]
        (if (and data (not loading?))
-         [:div
-          [stats-table data]
-          [ui/grid {:columns 2}
-           [ui/grid-row
-            [ui/grid-column
-             (let [min-buyout (apply min data)
-                   max-buyout (apply max data)]
-               [plotly-chart {:div-id "histogram"
-                              :title item-name
-                              :width 500
-                              :xlabel "Gold Per Item"
-                              :ylabel "Count"
-                              }
-                [{:x data
-                  :type :histogram
-                  :xbins {:start min-buyout
-                          :end max-buyout
-                          :size (/ (- max-buyout min-buyout) 50)}}]])]
-            [ui/grid-column
-             [plotly-chart {:ylabel "Gold Per Item"
-                            :width 400
-                            :div-id "box"}
-              [{:y data
-                :name item-name
-                :type :box
-                :boxpoints :all
-                :jitter 0.3
-                :pointpos -1.8}]]]]]]
+         ;;remove items more expensive than 2x the median
+         (let [sorted-data (sort data)
+               median (nth sorted-data (int (/ (count sorted-data) 2)))
+               cleaned-data (remove #(> % (* 2 median)) sorted-data)]
+           [:div
+            [stats-table data]
+            [ui/grid {:style {:width "900px"}}
+             [ui/grid-row {:columns 2}
+              [ui/grid-column
+               [current-data-histogram item-name cleaned-data]]
+              [ui/grid-column
+               [current-data-box-plot item-name cleaned-data]]]
+             [:div {:style {:margin :auto}}  "Note: Items more expensive than 2x the median have been removed"]
+             [ui/grid-row
+              [historical-chart item-name history]]]])
          [ui/loader {:active true :inline true :style {:margin "30px"}} "Loading"])])))
 
 
