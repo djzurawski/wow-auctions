@@ -17,6 +17,7 @@
                            :item-id 152510
                            :item-name "anchor weed"}))
 
+
 (defn plotly-chart
   "Plotly JS chart
   traces: vector of maps of all plots to display on chart in form:
@@ -54,6 +55,7 @@
     (fn [arg-map]
       [:div {:id div-id}])}))
 
+
 (defn debounce [f interval]
   (let [dbnc (Debouncer. f interval)]
     ;; We use apply here to support functions of various arities
@@ -69,6 +71,7 @@
                              (filter (fn [{:keys [title]}]
                                        (re-find pattern title))))))))
 
+
 (defn update-data!
   []
   (let [{:keys [item-id realm]} @app-state*]
@@ -77,13 +80,12 @@
           (swap! app-state* assoc :data (:body response))
           (swap! app-state* assoc :loading? false)))))
 
+
 (defn update-history!
   []
   (let [{:keys [item-id realm]} @app-state*]
-    #_(swap! app-state* assoc :loading? true)
     (go (let [response (<! (http/get (str "/api/get-item/history/" realm "/"  item-id)))]
-          (swap! app-state* assoc :history (:body response))
-          #_(swap! app-state* assoc :loading? false)))))
+          (swap! app-state* assoc :history (:body response))))))
 
 
 (defn realm-search
@@ -106,6 +108,7 @@
                                 (swap! app-state* assoc :realm realm)
                                 (update-data!)
                                 (update-history!)))}]))))
+
 
 (defn item-search
   [items]
@@ -130,10 +133,11 @@
                                 (update-data!)
                                 (update-history!)))}]))))
 
+
 (defn stats-table
   [data]
   [ui/table]
-  (let [sorted-data (sort data)
+  (let [sorted-data (sort (distinct data))
         cheapest (first sorted-data)
         second-cheapest (second sorted-data)
         total-auctions (count data)]
@@ -163,7 +167,6 @@
      :type :histogram}]])
 
 
-
 (defn current-data-box-plot
   [item-name data]
   [plotly-chart
@@ -177,10 +180,12 @@
      :jitter 0.3
      :pointpos -1.8}]])
 
+
 (defn historical-chart
   [item-name price-history]
   (let [timestamps (map :timestamp price-history)]
     [plotly-chart {:ylabel "Gold Per Item"
+                   :xlabel "Time UTC"
                    :width 1000
                    :div-id "line"
                    :title item-name}
@@ -204,7 +209,6 @@
        :name "Min"
        :type :line
        :line {:color :blue}}]]))
-
 
 
 (defn app
