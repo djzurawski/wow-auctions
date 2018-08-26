@@ -33,7 +33,8 @@
 (defn route-dispatcher
   [route-key]
   (case route-key
-      :get-item (fn [req] (api/get-item (:route-params req)))
+    :get-item-current (fn [req] (api/get-item-current (:route-params req)))
+    :get-item-history (fn [req] (api/get-item-history (:route-params req)))
       app))
 
 (defn wrap-json-type

@@ -4,10 +4,11 @@
    [environ.core :refer [env]]
    [incanter.stats :as stats]
    [clojure.java.jdbc :as jdbc]
-   [org.httpkit.client :as http]))
+   [org.httpkit.client :as http]
+   [wow-auctions.server.db :as db]))
 
 
-(defonce auction-data* (atom {}))
+(defonce current-auction-data* (atom {}))
 
 (def API-KEY (env :wow-api-key))
 
@@ -20,13 +21,13 @@
 
 (defn realm-data-exists?
   [realm]
-  (contains? @auction-data* realm))
+  (contains? @current-auction-data* realm))
 
 
 (defn stale-data?
   [realm last-modified]
-  (if (get @auction-data* realm)
-    (> last-modified (get-in @auction-data* [realm :last-modified]))
+  (if (get @current-auction-data* realm)
+    (> last-modified (get-in @current-auction-data* [realm :last-modified]))
     true))
 
 
@@ -62,7 +63,7 @@
         {:keys [lastModified url]} (first (:files status))]
     (when (fetch-data? realm lastModified)
       (let [auctions (:auctions (parse-body @(http/get url)))]
-        (swap! auction-data* assoc realm {:last-modified lastModified
+        (swap! current-auction-data* assoc realm {:last-modified lastModified
                                           :auctions (process-raw-auctions auctions)})))))
 
 (defn get-realm-auctions
@@ -93,3 +94,10 @@
               [label value])
             [:min :first-quartile :median :third-quartile :max] (stats/quantile prices))
        (into {})))
+
+
+(defn get-item-history
+  [item-id realm days]
+  (jdbc/query
+   (db/connection)
+   (format "select * from auctions where timestamp > NOW() - interval '%s days' AND realm='%s' AND item_id=%s" days realm item-id)))
