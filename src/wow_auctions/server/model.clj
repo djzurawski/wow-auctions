@@ -12,6 +12,7 @@
 
 (def API-KEY (env :wow-api-key))
 
+
 (defn parse-body
   [response]
   (try (cheshire/parse-string (:body response) true)
@@ -57,20 +58,20 @@
 (defn update-current-data!
   "Updates in memory most recent snapshot"
   [realm]
-  (let [status (parse-body @(http/get (str "https://us.api.battle.net/wow/auction/data/" realm)
+  (let [status (parse-body @(http/get (str "https://us.api.blizzard.com/wow/auction/data/" realm)
                                       {:query-params {:locale "en_US"
-                                                      :apikey API-KEY}}))
+                                                      :access_token API-KEY}}))
         {:keys [lastModified url]} (first (:files status))]
     (when (fetch-data? realm lastModified)
       (let [auctions (:auctions (parse-body @(http/get url)))]
         (swap! current-auction-data* assoc realm {:last-modified lastModified
-                                          :auctions (process-raw-auctions auctions)})))))
+                                                  :auctions (process-raw-auctions auctions)})))))
 
 (defn get-realm-auctions
   [realm]
-  (let [status (parse-body @(http/get (str "https://us.api.battle.net/wow/auction/data/" realm)
+  (let [status (parse-body @(http/get (str "https://us.api.blizzard.com/wow/auction/data/" realm)
                                       {:query-params {:locale "en_US"
-                                                      :apikey API-KEY}}))
+                                                      :access_token API-KEY}}))
         {:keys [lastModified url]} (first (:files status))]
     {:auctions (:auctions (parse-body @(http/get url)))
      :timestamp lastModified}))
