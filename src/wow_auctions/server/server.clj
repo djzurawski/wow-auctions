@@ -13,6 +13,19 @@
             [wow-auctions.server.api :as api]
             [wow-auctions.routes :refer [app-routes]]))
 
+(def google-analytics
+  "
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script async src=\"https://www.googletagmanager.com/gtag/js?id=UA-24912057-2\"></script>
+  <script>
+   window.dataLayer = window.dataLayer || [];
+   function gtag(){dataLayer.push(arguments);}
+   gtag('js', new Date());
+
+   gtag('config', 'UA-24912057-2');
+  </script>
+  ")
+
 
 (defn app
   [req]
@@ -20,6 +33,7 @@
    :body
    (html
     [:head
+     google-analytics
      [:meta {:charset "UTF-8"}]]
     [:html
      [:body
