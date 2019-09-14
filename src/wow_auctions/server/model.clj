@@ -8,16 +8,34 @@
    [wow-auctions.server.db :as db]))
 
 
+
+(def CLIENT-ID (env :client-id))
+(def CLIENT-SECRET (env :client-secret))
+(defonce TOKEN* (atom nil))
 (defonce current-auction-data* (atom {}))
 
-(def API-KEY (env :wow-api-key))
+
+(defn refresh-token!
+  []
+  (let [token (-> @(http/post "https://us.battle.net/oauth/token"
+                              {:basic-auth [CLIENT-ID CLIENT-SECRET]
+                               :form-params {"grant_type" "client_credentials"}})
+                  :body
+                  (cheshire/parse-string true)
+                  :access_token)]
+    (reset! TOKEN* token)))
 
 
-(defn parse-body
-  [response]
-  (try (cheshire/parse-string (:body response) true)
-       (catch Exception e
-         {})))
+(defn api-get
+  [url & opts]
+  (let [{:keys [status body] :as resp} @(http/get url
+                                        (merge {:query-params {:locale "en_US"
+                                                               :access_token @TOKEN*}}
+                                               opts))]
+    (if (not= status 200)
+      (do (refresh-token!)
+          (recur url opts))
+      (cheshire/parse-string body true))))
 
 
 (defn realm-data-exists?
@@ -58,22 +76,19 @@
 (defn update-current-data!
   "Updates in memory most recent snapshot"
   [realm]
-  (let [status (parse-body @(http/get (str "https://us.api.blizzard.com/wow/auction/data/" realm)
-                                      {:query-params {:locale "en_US"
-                                                      :access_token API-KEY}}))
-        {:keys [lastModified url]} (first (:files status))]
+  (let [body (api-get (str "https://us.api.blizzard.com/wow/auction/data/" realm))
+        {:keys [lastModified url]} (first (:files body))]
     (when (fetch-data? realm lastModified)
-      (let [auctions (:auctions (parse-body @(http/get url)))]
+      (let [auctions (:auctions (api-get url))]
         (swap! current-auction-data* assoc realm {:last-modified lastModified
                                                   :auctions (process-raw-auctions auctions)})))))
 
+
 (defn get-realm-auctions
   [realm]
-  (let [status (parse-body @(http/get (str "https://us.api.blizzard.com/wow/auction/data/" realm)
-                                      {:query-params {:locale "en_US"
-                                                      :access_token API-KEY}}))
-        {:keys [lastModified url]} (first (:files status))]
-    {:auctions (:auctions (parse-body @(http/get url)))
+  (let [body (api-get (str "https://us.api.blizzard.com/wow/auction/data/" realm))
+        {:keys [lastModified url]} (first (:files body))]
+    {:auctions (:auctions (api-get url))
      :timestamp lastModified}))
 
 

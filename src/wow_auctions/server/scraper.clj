@@ -8,7 +8,6 @@
             [wow-auctions.server.db :as db]
             [wow-auctions.server.model :as model]))
 
-(def API-KEY (env :wow-api-key))
 
 (defn auction-prices->db-row
   [auctions timestamp realm]
